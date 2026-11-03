@@ -30,3 +30,31 @@ void CHIP8::initRAM()
 
     std::ranges::copy(font, mMemory.begin() + FONT_LOCATION);
 }
+
+void CHIP8::fetch()
+{
+    mCurrentOpCode = mMemory[mPC];
+    mPC += 2;
+}
+
+void CHIP8::execute()
+{
+    u8 firstNibble  {(mCurrentOpCode & 0xF000) >> 12},
+       secondNibble {(mCurrentOpCode & 0x0F00) >> 8},
+       thirdNibble  {(mCurrentOpCode & 0x00F0) >> 4},
+       fourthNibble {mCurrentOpCode & 0x000F};
+    
+    u8 firstByte{mCurrentOpCode >> 8},
+       secondByte{mCurrentOpCode && 0x00FF};
+    
+    switch (firstNibble)
+    {
+        case 0:
+        {
+            // instruction 0nnn will not be implemented
+
+            if (secondByte == 0xE0)
+                mDisplay.fill(BLACK);
+        }
+    }
+}
