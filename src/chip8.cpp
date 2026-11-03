@@ -33,28 +33,93 @@ void CHIP8::initRAM()
 
 void CHIP8::fetch()
 {
-    mCurrentOpCode = mMemory[mPC];
+    mCurrentOpCode = std::byteswap(mMemory[mPC]);
     mPC += 2;
 }
 
 void CHIP8::execute()
 {
-    u8 firstNibble  {(mCurrentOpCode & 0xF000) >> 12},
-       secondNibble {(mCurrentOpCode & 0x0F00) >> 8},
-       thirdNibble  {(mCurrentOpCode & 0x00F0) >> 4},
-       fourthNibble {mCurrentOpCode & 0x000F};
+    u8 firstNibble  {(mCurrentOpCode >> 12) & 0x0F},
+       Vx {(mCurrentOpCode >> 8)  & 0x0F},
+       Vy  {(mCurrentOpCode >> 4)  & 0x0F},
+       fourthNibble {mCurrentOpCode         & 0x0F};
     
     u8 firstByte{mCurrentOpCode >> 8},
-       secondByte{mCurrentOpCode && 0x00FF};
+       KK{mCurrentOpCode && 0x00FF};
     
+    u16 nnn{mCurrentOpCode >> 8};
     switch (firstNibble)
     {
         case 0:
         {
             // instruction 0nnn will not be implemented
 
-            if (secondByte == 0xE0)
+            if (KK == 0xE0)
                 mDisplay.fill(BLACK);
         }
+
+        case 1:
+        {
+            // 1nnn sets the PC to nnn
+            mPC = nnn;
+            break; 
+        }
+
+        case 2:
+        {
+            // 2nnn calls the subroutine at nnn
+            mStack[++mSP] = mPC;
+            mPC = nnn;
+            break;
+        }
+
+        case 3:
+        {
+            // 3xkk skips the next instruction if Vx = kk
+
+            if (mRegisters[Vx] == KK)
+                mPC += 2;
+
+            break;
+        }
+
+        case 4:
+        {
+            // 4xkk skips the next instruction if Vx != kk
+
+            if (mRegisters[Vx] != KK)
+                mPC += 2;
+            
+            break;
+        }
+
+        case 5:
+        {
+            // 5xy0 skips the next insturction if Vx == Vy
+            if (mRegisters[Vx] == mRegisters[Vy])
+                mPC += 2;
+
+            break;
+        }
+        
+        case 6:
+        {
+            // 6xkk loads kk into Vx (Vx = kk)
+            mRegisters[Vx] = KK;
+            break;
+        }
+
+        case 7:
+        {
+            mRegisters[Vx] += KK;
+            break;
+        }
+
+        case 0xA:
+        {
+            mI = nnn;
+            break;
+        }
+
     }
 }
