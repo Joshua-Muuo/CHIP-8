@@ -12,6 +12,7 @@ private:
     void initRAM();
     void fetch();
     void execute();
+    void drawSprite();
 private:
     static constexpr u32 FONT_LOCATION{0x050};
     static constexpr u32 ROWS{64}, COLS{32};
@@ -31,6 +32,6 @@ private:
     std::array<u16, 16> mStack{};
     u16 mPC{}, mI{};
     u8 mDelayTimer{}, mSoundTimer{};
+    u8 mSP{};
     u16 mCurrentOpCode{};
-    
 };
