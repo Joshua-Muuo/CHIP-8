@@ -86,7 +86,6 @@ void CHIP8::execute()
         case 4:
         {
             // 4xkk skips the next instruction if Vx != kk
-
             if (mRegisters[Vx] != KK)
                 mPC += 2;
             
@@ -111,15 +110,47 @@ void CHIP8::execute()
 
         case 7:
         {
+            // 7xKK adds byte KK into register Vx
             mRegisters[Vx] += KK;
             break;
         }
 
         case 0xA:
         {
+            // Annn sets the value of the index register to nnn
             mI = nnn;
             break;
         }
 
+        case 0xD:
+        {
+            // Dxyn draws n-byte sprite starting at the memory location stored in the
+            // index register at (Vx, Vy)
+ 
+
+            mRegisters[static_cast<i32>(REGISTERS::VF)] = 0;
+            u16 x{mRegisters[Vx] % COLS},
+                y{mRegisters[Vy] % ROWS};
+
+            u8 nBytes{fourthNibble};
+            for (usize n{}; n < nBytes; ++n)
+            {
+                u8 byte{mMemory[mI + n]};
+                for (i32 i{}; i < 8; ++i)
+                {
+                    u8 bit{byte >> (8 - i) & 0xFF};
+                    if (mDisplay[y * ROWS + x] == WHITE)
+                        mRegisters[static_cast<i32>(REGISTERS::VF)] = 0;
+                }
+            }
+
+            drawSprite();
+        }
+
     }
+}
+
+void CHIP8::drawSprite()
+{   
+
 }
