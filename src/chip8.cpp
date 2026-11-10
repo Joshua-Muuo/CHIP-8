@@ -33,19 +33,19 @@ void CHIP8::initRAM()
 
 void CHIP8::fetch()
 {
-    mCurrentOpCode = std::byteswap(mMemory[mPC]);
+    mCurrentOpCode = mMemory[mPC + 1] << 8 | mMemory[mPC];
     mPC += 2;
 }
 
 void CHIP8::execute()
 {
-    u8 firstNibble  {(mCurrentOpCode >> 12) & 0x0F},
+    u8 firstNibble  {(mCurrentOpCode >> 12) & 0xF},
        Vx {(mCurrentOpCode >> 8)  & 0x0F},
        Vy  {(mCurrentOpCode >> 4)  & 0x0F},
-       fourthNibble {mCurrentOpCode         & 0x0F};
+       fourthNibble {mCurrentOpCode         & 0xF};
     
     u8 firstByte{mCurrentOpCode >> 8},
-       KK{mCurrentOpCode && 0x00FF};
+       KK{mCurrentOpCode && 0xFF};
     
     u16 nnn{mCurrentOpCode >> 8};
     switch (firstNibble)
@@ -124,33 +124,49 @@ void CHIP8::execute()
 
         case 0xD:
         {
-            // Dxyn draws n-byte sprite starting at the memory location stored in the
+            // Dxyn draws an n-byte sprite starting at the memory location stored in the
             // index register at (Vx, Vy)
  
 
+            // Before drawing a sprite, register VF has to be 
+            // set to 0. This is because if a filled in sprite is overwritten,
+            // register VF is set to 1.
             mRegisters[static_cast<i32>(REGISTERS::VF)] = 0;
+
+            // The starting position of the sprite is held in registers
+            // Vx and Vy. An important thing to note though is that it can wrap around,
+            // meaning that because the display has dimensions 64x32, a starting position of
+            // (65, 33) would be the same as (1, 1).
+            // Only the starting position should wrap around however. If a sprite were to go off 
+            // of the display, it should be clipped.
             u16 x{mRegisters[Vx] % COLS},
                 y{mRegisters[Vy] % ROWS};
 
+            // The fourth nibble stores the byte size of the sprite
             u8 nBytes{fourthNibble};
             for (usize n{}; n < nBytes; ++n)
             {
-                u8 byte{mMemory[mI + n]};
-                for (i32 i{}; i < 8; ++i)
-                {
-                    u8 bit{byte >> (8 - i) & 0xFF};
-                    if (mDisplay[y * ROWS + x] == WHITE)
-                        mRegisters[static_cast<i32>(REGISTERS::VF)] = 0;
-                }
-            }
+                // Stop drawing the sprite if it goes below the display.
+                if (y > ROWS)
+                    break;
 
-            drawSprite();
+                u8 byte{mMemory[mI + n]};
+                for (i32 dx{}; dx < 8; ++dx)
+                {
+                    // Stop drawing the current row if it goes outside of the display.
+                    if (x + dx > COLS)
+                        break;
+
+                    u32 index{y * ROWS + x + dx};
+                    u8 bit{byte >> (8 - dx + 1) & 1};
+                    if (mDisplay[index] == WHITE)
+                        mRegisters[static_cast<u32>(REGISTERS::VF)] = 1;
+                    
+                    mDisplay[index] ^= 1;
+                }
+                ++y;
+            }
         }
 
     }
-}
-
-void CHIP8::drawSprite()
-{   
-
 }
