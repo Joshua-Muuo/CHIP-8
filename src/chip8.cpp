@@ -31,6 +31,11 @@ void CHIP8::initRAM()
     std::ranges::copy(font, mMemory.begin() + FONT_LOCATION);
 }
 
+const std::array<bool, CHIP8::ROWS * CHIP8::COLS>& CHIP8::getDisplay()
+{
+    return mDisplay;
+}
+
 void CHIP8::fetch()
 {
     mCurrentOpCode = mMemory[mPC + 1] << 8 | mMemory[mPC];
@@ -39,15 +44,18 @@ void CHIP8::fetch()
 
 void CHIP8::execute()
 {
-    u8 firstNibble  {(mCurrentOpCode >> 12) & 0xF},
-       Vx {(mCurrentOpCode >> 8)  & 0x0F},
-       Vy  {(mCurrentOpCode >> 4)  & 0x0F},
-       fourthNibble {mCurrentOpCode         & 0xF};
-    
-    u8 firstByte{mCurrentOpCode >> 8},
-       KK{mCurrentOpCode && 0xFF};
-    
-    u16 nnn{mCurrentOpCode >> 8};
+    u8 firstByte{mCurrentOpCode >> 8 && 0xFF},
+       KK       {mCurrentOpCode      && 0xFF};
+
+    u8 firstNibble  {static_cast<u8>(firstByte >> 4)},
+       Vx           {static_cast<u8>(firstByte & 0xF)},
+       Vy           {static_cast<u8>(KK >> 4)},
+       fourthNibble {static_cast<u8>(KK & 0xF)};
+   
+    // nnn represents the second, third, and fourth (last three) nibbles in the op code 
+    // shift the opcode to the left by 4 bits to get rid of the first nibble, 
+    // then undo the shift
+    u16 nnn{static_cast<u16>((mCurrentOpCode << 4) >> 4)};
     switch (firstNibble)
     {
         case 0:
@@ -139,8 +147,8 @@ void CHIP8::execute()
             // (65, 33) would be the same as (1, 1).
             // Only the starting position should wrap around however. If a sprite were to go off 
             // of the display, it should be clipped.
-            u16 x{mRegisters[Vx] % COLS},
-                y{mRegisters[Vy] % ROWS};
+            u16 x{static_cast<u16>(mRegisters[Vx] % COLS)},
+                y{static_cast<u16>(mRegisters[Vy] % ROWS)};
 
             // The fourth nibble stores the byte size of the sprite
             u8 nBytes{fourthNibble};
@@ -158,7 +166,7 @@ void CHIP8::execute()
                         break;
 
                     u32 index{y * ROWS + x + dx};
-                    u8 bit{byte >> (8 - dx + 1) & 1};
+                    u8 bit{static_cast<u8>(byte >> (8 - dx + 1) & 1)};
                     if (mDisplay[index] == WHITE)
                         mRegisters[static_cast<u32>(REGISTERS::VF)] = 1;
                     
