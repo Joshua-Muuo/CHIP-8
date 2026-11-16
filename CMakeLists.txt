@@ -7,14 +7,16 @@ include(FetchContent)
 
 set(SRC_FILES 
 	src/main.cpp 
+    src/chip8.cpp
+    src/window.cpp
 )
 
 FetchContent_Declare(
-    SDL3
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL    
-	GIT_TAG        main   
+    SFML
+    GIT_REPOSITORY https://github.com/sfml/sfml.git   
+	GIT_TAG        master   
 )
-FetchContent_MakeAvailable(SDL3)
+FetchContent_MakeAvailable(SFML)
 
 add_executable(main ${SRC_FILES})
-target_link_libraries(main)	
+target_link_libraries(main SFML::Graphics SFML::Audio SFML::System)	
