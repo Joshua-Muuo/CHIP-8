@@ -1,3 +1,4 @@
+#pragma once
 #include <array>
 #include "types.hpp"
 
@@ -5,23 +6,23 @@
 
 class CHIP8
 {
-private:
-    static constexpr u32 FONT_LOCATION{0x050};
-    static constexpr u32 ROWS{64}, COLS{32};
-    static constexpr bool BLACK{0}, WHITE{1};
-
+public:
+    static constexpr u32 ROWS{32}, COLS{64};
 public:
     CHIP8();
     void loadROM();
     const std::array<bool, ROWS * COLS>& getDisplay();
+
 private:
     void initRAM();
     void fetch();
     void execute();
 private:
+    static constexpr u32 FONT_LOCATION{0x050};
+    static constexpr bool BLACK{0}, WHITE{1};
+private:
     enum class REGISTERS
     {
-
         V0, V1, V2, V3, V4, V5, V6, V7, 
         V8, V9, VA, VB, VC, VD, VE, VF
     };

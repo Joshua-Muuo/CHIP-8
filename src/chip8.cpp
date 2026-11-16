@@ -152,7 +152,7 @@ void CHIP8::execute()
 
             // The fourth nibble stores the byte size of the sprite
             u8 nBytes{fourthNibble};
-            for (usize n{}; n < nBytes; ++n)
+            for (i32 n{}; n < nBytes; ++n)
             {
                 // Stop drawing the sprite if it goes below the display.
                 if (y > ROWS)
@@ -165,8 +165,8 @@ void CHIP8::execute()
                     if (x + dx > COLS)
                         break;
 
-                    u32 index{y * ROWS + x + dx};
-                    u8 bit{static_cast<u8>(byte >> (8 - dx + 1) & 1)};
+                    u32 index{(y + n) * COLS + x + dx};
+                    u8 bit{static_cast<u8>(byte >> (8 - dx - 1) & 1)};
                     if (mDisplay[index] == WHITE)
                         mRegisters[static_cast<u32>(REGISTERS::VF)] = 1;
                     
