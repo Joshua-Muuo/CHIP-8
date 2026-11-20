@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include "types.hpp"
+#include <string>
 
 #define KB 1024
 
@@ -10,9 +11,10 @@ public:
     static constexpr u32 ROWS{32}, COLS{64};
 public:
     CHIP8();
-    void loadROM();
+    void loadROM(const std::string& romFile);
     const std::array<bool, ROWS * COLS>& getDisplay();
 
+    void run() { fetch(); execute(); }
 private:
     void initRAM();
     void fetch();
@@ -20,6 +22,7 @@ private:
 private:
     static constexpr u32 FONT_LOCATION{0x050};
     static constexpr bool BLACK{0}, WHITE{1};
+    static constexpr u32 SP_INITIAL{0x200};
 private:
     enum class REGISTERS
     {

@@ -1,16 +1,18 @@
 #include "chip8.hpp"
 #include <algorithm>
+#include <fstream>
 
 CHIP8::CHIP8()
 {
     initRAM();
+    loadROM("roms/ibm-logo.rom");
 }
 
 void CHIP8::initRAM()
 {
+    mSP = SP_INITIAL;
     std::array<u8, 5 * 16> font{
     // font from  https://tobiasvl.github.io/blog/write-a-chip-8-emulator/
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
     0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
@@ -29,6 +31,15 @@ void CHIP8::initRAM()
     };
 
     std::ranges::copy(font, mMemory.begin() + FONT_LOCATION);
+}
+
+void CHIP8::loadROM(const std::string& romFile)
+{
+    std::ifstream rom{romFile, std::ios::binary};
+    const u32 INSTRUCTIONS_SIZE{mMemory.size() + SP_INITIAL};
+    isize count{0};
+
+    rom.read(reinterpret_cast<char*>(mMemory.data()) + SP_INITIAL, INSTRUCTIONS_SIZE);
 }
 
 const std::array<bool, CHIP8::ROWS * CHIP8::COLS>& CHIP8::getDisplay()
