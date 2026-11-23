@@ -22,7 +22,7 @@ private:
 private:
     static constexpr u32 FONT_LOCATION{0x050};
     static constexpr bool BLACK{0}, WHITE{1};
-    static constexpr u32 SP_INITIAL{0x200};
+    static constexpr u32 PC_INITIAL{0x200};
 private:
     enum class REGISTERS
     {

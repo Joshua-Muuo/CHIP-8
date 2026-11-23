@@ -1,16 +1,18 @@
 #include "chip8.hpp"
 #include <algorithm>
 #include <fstream>
+#include <print>
+#include <filesystem>
 
 CHIP8::CHIP8()
 {
     initRAM();
-    loadROM("roms/ibm-logo.rom");
+    loadROM("roms/ibm-logo.ch8");
 }
 
 void CHIP8::initRAM()
 {
-    mSP = SP_INITIAL;
+    mPC = PC_INITIAL;
     std::array<u8, 5 * 16> font{
     // font from  https://tobiasvl.github.io/blog/write-a-chip-8-emulator/
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -35,11 +37,36 @@ void CHIP8::initRAM()
 
 void CHIP8::loadROM(const std::string& romFile)
 {
-    std::ifstream rom{romFile, std::ios::binary};
-    const u32 INSTRUCTIONS_SIZE{mMemory.size() + SP_INITIAL};
-    isize count{0};
+    std::filesystem::path romPath{romFile};
+    if (!std::filesystem::exists(romPath))
+    {
+        std::println(stderr, "Error: rom could not be found");
+        return;
+    }
 
-    rom.read(reinterpret_cast<char*>(mMemory.data()) + SP_INITIAL, INSTRUCTIONS_SIZE);
+    const u32 INSTRUCTIONS_SIZE{mMemory.size() - PC_INITIAL};
+
+    std::error_code ec;
+    usize romFileSize{std::filesystem::file_size(romPath, ec)};
+    if (ec)
+    {
+        std::println(stderr, "Error: {}", ec.message());
+        return;
+    }
+
+    if (romFileSize > INSTRUCTIONS_SIZE)
+    {
+        std::println(stderr, "Error: rom is too big to fit in memory");
+        return;
+    }
+
+    std::ifstream rom{romPath, std::ios::binary};
+    rom.read(reinterpret_cast<char*>(mMemory.data()) + PC_INITIAL, INSTRUCTIONS_SIZE);
+
+    for (u32 i{0}; i < 0x20; ++i)
+    {
+        std::println("{:X}", mMemory[i + PC_INITIAL]);
+    }
 }
 
 const std::array<bool, CHIP8::ROWS * CHIP8::COLS>& CHIP8::getDisplay()
@@ -49,14 +76,17 @@ const std::array<bool, CHIP8::ROWS * CHIP8::COLS>& CHIP8::getDisplay()
 
 void CHIP8::fetch()
 {
-    mCurrentOpCode = mMemory[mPC + 1] << 8 | mMemory[mPC];
+    // mCurrentOpCode = mMemory[mPC + 1] << 8 | mMemory[mPC];
+    std::println("{:02X} and {:02X}", mMemory[mPC], mMemory[mPC + 1]);
+    mCurrentOpCode = mMemory[mPC] << 8 | mMemory[mPC + 1];
     mPC += 2;
 }
 
 void CHIP8::execute()
 {
-    u8 firstByte{mCurrentOpCode >> 8 && 0xFF},
-       KK       {mCurrentOpCode      && 0xFF};
+    static u32 count{};
+    u8 firstByte{static_cast<u8>((mCurrentOpCode >> 8) & 0xFF)},
+       KK       {static_cast<u8>(mCurrentOpCode      & 0xFF)};
 
     u8 firstNibble  {static_cast<u8>(firstByte >> 4)},
        Vx           {static_cast<u8>(firstByte & 0xF)},
@@ -66,7 +96,12 @@ void CHIP8::execute()
     // nnn represents the second, third, and fourth (last three) nibbles in the op code 
     // shift the opcode to the left by 4 bits to get rid of the first nibble, 
     // then undo the shift
-    u16 nnn{static_cast<u16>((mCurrentOpCode << 4) >> 4)};
+    u16 nnn{static_cast<u16>(mCurrentOpCode & 0xFFF)};
+
+    std::println("instruction code is {:04X}\nfirstByte is {:02X}, KK is {:02X}, nnn is {:03X}", mCurrentOpCode, firstByte, KK, nnn);
+    std::println("PC is {:X}", mPC);
+    // if (count > 5)
+    //     std::exit(0);
     switch (firstNibble)
     {
         case 0:
@@ -75,6 +110,7 @@ void CHIP8::execute()
 
             if (KK == 0xE0)
                 mDisplay.fill(BLACK);
+            break;
         }
 
         case 1:
@@ -131,6 +167,7 @@ void CHIP8::execute()
         {
             // 7xKK adds byte KK into register Vx
             mRegisters[Vx] += KK;
+            std::println("added {} to register {}", KK, Vx);
             break;
         }
 
@@ -143,6 +180,8 @@ void CHIP8::execute()
 
         case 0xD:
         {
+
+            std::println("reached draw instruction");
             // Dxyn draws an n-byte sprite starting at the memory location stored in the
             // index register at (Vx, Vy)
  
@@ -161,32 +200,42 @@ void CHIP8::execute()
             u16 x{static_cast<u16>(mRegisters[Vx] % COLS)},
                 y{static_cast<u16>(mRegisters[Vy] % ROWS)};
 
+            std::println("starting at ({}, {})", x, y);
+
             // The fourth nibble stores the byte size of the sprite
             u8 nBytes{fourthNibble};
+            std::println("started draw at index {:X}, drawing {} bytes", mI, nBytes);
             for (i32 n{}; n < nBytes; ++n)
             {
                 // Stop drawing the sprite if it goes below the display.
-                if (y > ROWS)
+                if (y >= ROWS)
                     break;
 
                 u8 byte{mMemory[mI + n]};
                 for (i32 dx{}; dx < 8; ++dx)
                 {
                     // Stop drawing the current row if it goes outside of the display.
-                    if (x + dx > COLS)
+                    if (x + dx >= COLS)
                         break;
 
+                    std::println("n is {}, y is {}", n, y);
+                    std::println("x is {}, dx is {}", x, dx);
                     u32 index{(y + n) * COLS + x + dx};
-                    u8 bit{static_cast<u8>(byte >> (8 - dx - 1) & 1)};
-                    if (mDisplay[index] == WHITE)
+                    u8 bit{static_cast<u8>((byte >> (8 - dx - 1)) & 1)};
+
+                    std::println("draw bit {} at index {}", bit, index);
+                    if (mDisplay[index])
                         mRegisters[static_cast<u32>(REGISTERS::VF)] = 1;
+                    else
+                        std::println("drawing white to screen");
                     
                     mDisplay[index] ^= 1;
                 }
-                ++y;
             }
         }
     }
+
+    ++count;
 } 
 
 void CHIP8::run()
