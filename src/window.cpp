@@ -20,6 +20,8 @@ Window::Window(const Config& config)
             config.title
         );
     }
+
+    mWindow.setFramerateLimit(60);
 }
 
 bool Window::isOpen()
@@ -40,6 +42,7 @@ void Window::pollEvents()
 void Window::draw()
 {
     mWindow.clear();
+    mCHIP8.run();
     drawDisplay();
     mWindow.display();
 }
@@ -47,7 +50,7 @@ void Window::draw()
 void Window::drawDisplay()
 {
     static sf::RectangleShape rect{{PIXEL_SIZE, PIXEL_SIZE}};
-    const auto chip8Display{mCHIP8.getDisplay()};
+    const auto& chip8Display{mCHIP8.getDisplay()};
     for (u32 y{}; y < CHIP8::ROWS; ++y)
     {
         for (u32 x{}; x < CHIP8::COLS; ++x)
@@ -58,3 +61,4 @@ void Window::drawDisplay()
         }
     }
 }
+
