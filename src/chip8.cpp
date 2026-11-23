@@ -186,6 +186,15 @@ void CHIP8::execute()
                 ++y;
             }
         }
-
     }
+} 
+
+void CHIP8::run()
+{ 
+    fetch(); 
+    execute(); 
+
+    if (mDelayTimer > 0) --mDelayTimer;
+    if (mSoundTimer > 0) --mSoundTimer;
+
 }

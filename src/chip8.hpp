@@ -14,7 +14,7 @@ public:
     void loadROM(const std::string& romFile);
     const std::array<bool, ROWS * COLS>& getDisplay();
 
-    void run() { fetch(); execute(); }
+    void run();
 private:
     void initRAM();
     void fetch();
@@ -35,7 +35,7 @@ private:
     std::array<u8, 16> mRegisters{};
     std::array<u16, 16> mStack{};
     u16 mPC{}, mI{};
-    u8 mDelayTimer{}, mSoundTimer{};
+    u8 mDelayTimer{60}, mSoundTimer{60};
     u8 mSP{};
     u16 mCurrentOpCode{};
 };
