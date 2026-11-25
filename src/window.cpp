@@ -1,4 +1,5 @@
 #include "window.hpp"
+#include "SFML/Window/Keyboard.hpp"
 #include <print>
 
 Window::Window(const Config& config)
@@ -34,6 +35,11 @@ void Window::pollEvents()
         if (event->is<sf::Event::Closed>()) 
             mWindow.close();
     }
+
+	auto& chip8KeyMap{mCHIP8.getKeyMap()};
+	for (const auto& [key, keyValue] : mKeyMap)
+		chip8KeyMap[keyValue] = sf::Keyboard::isKeyPressed(key);
+	
     
 }
 
