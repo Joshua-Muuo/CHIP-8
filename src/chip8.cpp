@@ -228,11 +228,15 @@ void CHIP8::execute()
 					break;
 				}
 				case 5:
+					mRegisters[(int)REGISTERS::VF] = regX < regY;
+					regX -= regY;
 					break;
 				case 6:
 					regX = regX >> 1;
 					break;
 				case 7:
+					mRegisters[(int)REGISTERS::VF] = regY < regX;
+					regX = regY - regX;
 					break;
 				case 0xE:
 					regX = regX << 1;
@@ -330,6 +334,9 @@ void CHIP8::execute()
 
 				case 0x1E:
 					mI += regX;
+					break;
+				case 0x29:
+					mI = regX * 5 + FONT_LOCATION;
 					break;
 			}
 		}
