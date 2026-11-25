@@ -20,8 +20,6 @@ Window::Window(const Config& config)
             config.title
         );
     }
-
-    mWindow.setFramerateLimit(60);
 }
 
 bool Window::isOpen()

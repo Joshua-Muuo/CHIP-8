@@ -2,9 +2,11 @@
 #include <array>
 #include "types.hpp"
 #include <string>
+#include <chrono>
 
 #define KB 1024
 
+using timepoint = std::chrono::time_point<std::chrono::system_clock>;
 class CHIP8
 {
 public:
@@ -20,9 +22,11 @@ private:
     void fetch();
     void execute();
 private:
-    static constexpr u32 FONT_LOCATION{0x050};
     static constexpr bool BLACK{0}, WHITE{1};
+    static constexpr u32 FONT_LOCATION{0x050};
     static constexpr u32 PC_INITIAL{0x200};
+    static constexpr u32 INSTRUCTIONS_PER_CALL{10};
+	static constexpr f32 FPS_MS{1000.0f / 60};
 private:
     enum class REGISTERS
     {
@@ -38,4 +42,7 @@ private:
     u8 mDelayTimer{60}, mSoundTimer{60};
     u8 mSP{};
     u16 mCurrentOpCode{};
+
+	f32 mDeltaTime{};
+	timepoint mLastCall, mThisCall;
 };

@@ -1,9 +1,22 @@
 #include "chip8.hpp"
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <print>
 #include <filesystem>
+#include <random>
 
+namespace 
+{
+	u8 randByte()
+	{
+		static std::random_device rd;
+		static std::mt19937 gen(rd());
+
+		static std::uniform_int_distribution<u8> distrib(0, 255);
+		return distrib(gen);
+	}
+};
 CHIP8::CHIP8()
 {
     initRAM();
@@ -103,10 +116,12 @@ void CHIP8::execute()
     // then undo the shift
     u16 nnn{static_cast<u16>(mCurrentOpCode & 0xFFF)};
 
-    std::println("instruction code is {:04X}\nfirstByte is {:02X}, KK is {:02X}, nnn is {:03X}", mCurrentOpCode, firstByte, KK, nnn);
-    std::println("PC is {:X}", mPC);
+    // std::println("instruction code is {:04X}\nfirstByte is {:02X}, KK is {:02X}, nnn is {:03X}", mCurrentOpCode, firstByte, KK, nnn);
+    // std::println("PC is {:X}", mPC);
     // if (count > 5)
     //     std::exit(0);
+	
+	u8& regX{mRegisters[Vx]}, &regY{mRegisters[Vy]};
     switch (firstNibble)
     {
         case 0:
@@ -115,6 +130,11 @@ void CHIP8::execute()
 
             if (KK == 0xE0)
                 mDisplay.fill(BLACK);
+			if (KK == 0xEE)
+			{
+				mPC = mStack[mSP - 1];
+				--mSP;
+			}
             break;
         }
 
@@ -178,6 +198,54 @@ void CHIP8::execute()
             break;
         }
 
+		case 8:
+		{
+			switch (fourthNibble)
+			{
+				case 0:
+					// LD Vx, Vy
+					regX = regY;
+					break;
+				case 1:
+					regX = regX & regY;
+					break;
+				case 2:
+					regX = regX | regY;
+					break;
+				case 3:
+					regX = regX ^ regY;
+					break;
+				case 4:
+				{
+					u16 sum = (u16)regX + regY;
+					if (sum > 255)
+					{
+						sum -= 255;
+						mRegisters[(int)REGISTERS::VF] = 1;
+					}
+					
+					regX = sum;
+					break;
+				}
+				case 5:
+					break;
+				case 6:
+					regX = regX >> 1;
+					break;
+				case 7:
+					break;
+				case 0xE:
+					regX = regX << 1;
+					break;
+			}
+		}
+
+		case 0x9:
+		{
+			if (regX != regY) mPC += 2;
+			break;
+		}
+
         case 0xA:
         {
             // Annn sets the value of the index register to nnn
@@ -185,10 +253,19 @@ void CHIP8::execute()
             break;
         }
 
+        case 0xB:
+        {
+            // Annn sets the value of the index register to nnn
+            mI = nnn + mRegisters[(i32)REGISTERS::V0];
+            break;
+        }
+		case 0xC:
+		{
+			regX = randByte() & KK;
+			break;
+		}
         case 0xD:
         {
-
-            std::println("reached draw instruction");
             // Dxyn draws an n-byte sprite starting at the memory location stored in the
             // index register at (Vx, Vy)
  
@@ -207,11 +284,8 @@ void CHIP8::execute()
             u16 x{static_cast<u16>(mRegisters[Vx] % COLS)},
                 y{static_cast<u16>(mRegisters[Vy] % ROWS)};
 
-            std::println("starting at ({}, {})", x, y);
-
             // The fourth nibble stores the byte size of the sprite
             u8 nBytes{fourthNibble};
-            std::println("started draw at index {:X}, drawing {} bytes", mI, nBytes);
             for (i32 n{}; n < nBytes; ++n)
             {
                 // Stop drawing the sprite if it goes below the display.
@@ -230,13 +304,35 @@ void CHIP8::execute()
 
                     if (mDisplay[index] && bit)
                         mRegisters[static_cast<u32>(REGISTERS::VF)] = 1;
-                    else
-                        std::println("drawing white to screen");
                     
                     mDisplay[index] ^= bit;
                 }
             }
         }
+
+		case 0xF:
+		{
+			switch (KK)
+			{
+				case 0x07:
+					regX = mDelayTimer;
+					break;
+				case 0x0A:
+					// wait
+					break;
+
+				case 0x15:
+					mDelayTimer = regX;
+					break;
+				case 0x18:
+					mSoundTimer = regX;
+					break;
+
+				case 0x1E:
+					mI += regX;
+					break;
+			}
+		}
     }
 
     ++count;
@@ -244,10 +340,25 @@ void CHIP8::execute()
 
 void CHIP8::run()
 { 
-    fetch(); 
-    execute(); 
+	namespace chrono = std::chrono;
+	mThisCall = chrono::system_clock::now();
+	auto ms{chrono::duration_cast<chrono::milliseconds>(mThisCall - mLastCall)};
 
-    if (mDelayTimer > 0) --mDelayTimer;
-    if (mSoundTimer > 0) --mSoundTimer;
 
+	mDeltaTime += ms.count();
+	if (mDeltaTime >= FPS_MS)
+	{
+		mDeltaTime = 0.0f;
+
+		for (u32 _{}; _ < INSTRUCTIONS_PER_CALL; ++_)
+		{
+			fetch(); 
+			execute(); 
+		}
+
+		if (mDelayTimer > 0) --mDelayTimer;
+		if (mSoundTimer > 0) --mSoundTimer;
+	}
+
+	mLastCall = mThisCall;
 }
