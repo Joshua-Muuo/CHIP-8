@@ -14,28 +14,33 @@ public:
 public:
     CHIP8();
     void loadROM(const std::string& romFile);
+	
     const std::array<bool, ROWS * COLS>& getDisplay();
+    std::array<bool, 16>& getKeyMap();
 
     void run();
-private:
-    void initRAM();
-    void fetch();
-    void execute();
 private:
     static constexpr bool BLACK{0}, WHITE{1};
     static constexpr u32 FONT_LOCATION{0x050};
     static constexpr u32 PC_INITIAL{0x200};
     static constexpr u32 INSTRUCTIONS_PER_CALL{10};
 	static constexpr f32 FPS_MS{1000.0f / 60};
-private:
-    enum class REGISTERS
+
+	enum class Registers
     {
         V0, V1, V2, V3, V4, V5, V6, V7, 
         V8, V9, VA, VB, VC, VD, VE, VF
     };
-    
+private:
+    void initRAM();
+    void fetch();
+    void execute();
+	u8& getRegister(const Registers& reg);
+	const u8& getRegister(const Registers& reg) const;
+private: 
     std::array<u8, 4 * KB> mMemory{};
     std::array<bool, ROWS * COLS> mDisplay{};
+    std::array<bool, 16> mKeyMap{};
     std::array<u8, 16> mRegisters{};
     std::array<u16, 16> mStack{};
     u16 mPC{}, mI{};

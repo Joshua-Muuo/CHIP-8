@@ -92,6 +92,11 @@ const std::array<bool, CHIP8::ROWS * CHIP8::COLS>& CHIP8::getDisplay()
     return mDisplay;
 }
 
+std::array<bool, 16>& CHIP8::getKeyMap()
+{
+	return mKeyMap;
+}
+
 void CHIP8::fetch()
 {
     // mCurrentOpCode = mMemory[mPC + 1] << 8 | mMemory[mPC];
@@ -221,21 +226,21 @@ void CHIP8::execute()
 					if (sum > 255)
 					{
 						sum -= 255;
-						mRegisters[(int)REGISTERS::VF] = 1;
+						getRegister(Registers::VF) = 1;
 					}
 					
 					regX = sum;
 					break;
 				}
 				case 5:
-					mRegisters[(int)REGISTERS::VF] = regX < regY;
+					getRegister(Registers::VF) = regX < regY;
 					regX -= regY;
 					break;
 				case 6:
 					regX = regX >> 1;
 					break;
 				case 7:
-					mRegisters[(int)REGISTERS::VF] = regY < regX;
+					getRegister(Registers::VF) = regY < regX;
 					regX = regY - regX;
 					break;
 				case 0xE:
@@ -260,7 +265,7 @@ void CHIP8::execute()
         case 0xB:
         {
             // Annn sets the value of the index register to nnn
-            mI = nnn + mRegisters[(i32)REGISTERS::V0];
+            mI = nnn + getRegister(Registers::V0);
             break;
         }
 		case 0xC:
@@ -277,7 +282,7 @@ void CHIP8::execute()
             // Before drawing a sprite, register VF has to be 
             // set to 0. This is because if a filled in sprite is overwritten,
             // register VF is set to 1.
-            mRegisters[static_cast<i32>(REGISTERS::VF)] = 0;
+            getRegister(Registers::VF) = 0;
 
             // The starting position of the sprite is held in registers
             // Vx and Vy. An important thing to note though is that it can wrap around,
@@ -307,12 +312,16 @@ void CHIP8::execute()
                     u8 bit{static_cast<u8>((byte >> (7 - dx)) & 1)};
 
                     if (mDisplay[index] && bit)
-                        mRegisters[static_cast<u32>(REGISTERS::VF)] = 1;
+                        getRegister(Registers::VF) = 1;
                     
                     mDisplay[index] ^= bit;
                 }
             }
         }
+
+		case 0xE:
+		{
+		}
 
 		case 0xF:
 		{
@@ -368,4 +377,14 @@ void CHIP8::run()
 	}
 
 	mLastCall = mThisCall;
+}
+
+u8& CHIP8::getRegister(const Registers& reg)
+{
+	return mRegisters[static_cast<usize>(reg)];
+}
+
+const u8& CHIP8::getRegister(const Registers& reg) const
+{
+	return mRegisters[static_cast<usize>(reg)];
 }
