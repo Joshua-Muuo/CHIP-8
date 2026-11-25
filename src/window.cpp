@@ -57,7 +57,11 @@ void Window::drawDisplay()
         {
             u32 index{y * CHIP8::COLS + x};
             rect.setFillColor(chip8Display[index] ? sf::Color::White : sf::Color::Black);
-            rect.setPosition({static_cast<f32>(x), static_cast<f32>(y)});
+            rect.setPosition(
+					{
+						static_cast<f32>(x * PIXEL_SIZE), 
+						static_cast<f32>(y * PIXEL_SIZE)
+					});
             mWindow.draw(rect);
         }
     }

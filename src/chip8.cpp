@@ -61,7 +61,12 @@ void CHIP8::loadROM(const std::string& romFile)
     }
 
     std::ifstream rom{romPath, std::ios::binary};
-    rom.read(reinterpret_cast<char*>(mMemory.data()) + PC_INITIAL, INSTRUCTIONS_SIZE);
+	if (!rom)
+	{
+        std::println(stderr, "Error: rom could not be read");
+        return;
+	}
+    rom.read(reinterpret_cast<char*>(mMemory.data()) + PC_INITIAL, romFileSize);
 
     for (u32 i{0}; i < 0x20; ++i)
     {
@@ -123,7 +128,7 @@ void CHIP8::execute()
         case 2:
         {
             // 2nnn calls the subroutine at nnn
-            mStack[++mSP] = mPC;
+            mStack[mSP++] = mPC;
             mPC = nnn;
             break;
         }
@@ -150,6 +155,8 @@ void CHIP8::execute()
         case 5:
         {
             // 5xy0 skips the next insturction if Vx == Vy
+
+			if (fourthNibble != 0) break;
             if (mRegisters[Vx] == mRegisters[Vy])
                 mPC += 2;
 
@@ -208,7 +215,7 @@ void CHIP8::execute()
             for (i32 n{}; n < nBytes; ++n)
             {
                 // Stop drawing the sprite if it goes below the display.
-                if (y >= ROWS)
+                if (y + n >= ROWS)
                     break;
 
                 u8 byte{mMemory[mI + n]};
@@ -218,18 +225,15 @@ void CHIP8::execute()
                     if (x + dx >= COLS)
                         break;
 
-                    std::println("n is {}, y is {}", n, y);
-                    std::println("x is {}, dx is {}", x, dx);
                     u32 index{(y + n) * COLS + x + dx};
-                    u8 bit{static_cast<u8>((byte >> (8 - dx - 1)) & 1)};
+                    u8 bit{static_cast<u8>((byte >> (7 - dx)) & 1)};
 
-                    std::println("draw bit {} at index {}", bit, index);
-                    if (mDisplay[index])
+                    if (mDisplay[index] && bit)
                         mRegisters[static_cast<u32>(REGISTERS::VF)] = 1;
                     else
                         std::println("drawing white to screen");
                     
-                    mDisplay[index] ^= 1;
+                    mDisplay[index] ^= bit;
                 }
             }
         }
