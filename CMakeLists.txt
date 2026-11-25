@@ -16,6 +16,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/sfml/sfml.git   
 	GIT_TAG        master   
 )
+set(SFML_BUILD_NETWORK OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(SFML)
 
 FetchContent_Declare(
