@@ -96,22 +96,21 @@ const std::array<bool, CHIP8::ROWS * CHIP8::COLS>& CHIP8::getDisplay()
 void CHIP8::setKey(u8 keyValue, bool on)
 {
 	if (keyValue > 0xF) return;
-	mKeyMap[keyValue] = on;
-
-	if (on && mWaitingForKeyPress)
+	if (!mKeyMap[keyValue] && on)
 	{
-		mWaitingForKeyPress = false;
+		mKeyJustPressed = true;
 		mKeyPressed = keyValue;
-		std::println("done waiting");
+		std::println("keyJustPressed");
 	}
 
+	mKeyMap[keyValue] = on;
 }
 
 
 void CHIP8::fetch()
 {
     // mCurrentOpCode = mMemory[mPC + 1] << 8 | mMemory[mPC];
-    std::println("{:02X} and {:02X}", mMemory[mPC], mMemory[mPC + 1]);
+    // std::println("{:02X} and {:02X}", mMemory[mPC], mMemory[mPC + 1]);
     mCurrentOpCode = mMemory[mPC] << 8 | mMemory[mPC + 1];
     mPC += 2;
 }
@@ -209,7 +208,7 @@ void CHIP8::execute()
         {
             // 7xKK adds byte KK into register Vx
             Vx += KK;
-            std::println("added {} to register {}", KK, x);
+            // std::println("added {} to register {}", KK, x);
             break;
         }
 
@@ -399,8 +398,17 @@ void CHIP8::execute()
 				case 0x0A:
 					// Fx0A stops execution until a key is pressed, then stores
 					// the value of that key in Vx
-					mWaitingForKeyPress = true;		
-					mPC -= 2;
+					if (mKeyJustPressed)
+					{
+						Vx = mKeyPressed;
+						mWaitingForKeyPress = false;
+						// std::println("stored key pressed into Vx");
+					}
+					else
+					{
+						mPC -= 2;
+						mWaitingForKeyPress = true;		
+					}
 					break;
 				case 0x15:
 					// Fx15 sets the delay timer to Vx
@@ -461,10 +469,12 @@ void CHIP8::execute()
 
 void CHIP8::run()
 { 
-	if (mInstructionClock.tick() && !mWaitingForKeyPress)
+	if (mInstructionClock.tick() && (!mWaitingForKeyPress || mKeyJustPressed))
 	{
 		fetch(); 
 		execute(); 
+
+		mKeyJustPressed = false;
 	}
 
 	if (mTimerClock.tick())

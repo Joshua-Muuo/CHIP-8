@@ -22,7 +22,7 @@ private:
     static constexpr bool BLACK{0}, WHITE{1};
     static constexpr u32 FONT_LOCATION{0x050};
     static constexpr u32 PC_INITIAL{0x200};
-    static constexpr u32 INSTRUCTIONS_PER_SECOND{600};
+    static constexpr u32 INSTRUCTIONS_PER_SECOND{100000000};
 	static constexpr f32 FPS_MS{1000.0f / 60};
 
 	enum class Registers
@@ -48,6 +48,6 @@ private:
     u16 mCurrentOpCode{};
 
 	u8 mKeyPressed;
-	bool mWaitingForKeyPress{false};
-	Clock mTimerClock{1000 / 60}, mInstructionClock{1000 / INSTRUCTIONS_PER_SECOND};
+	bool mWaitingForKeyPress{false}, mKeyJustPressed{false};
+	Clock mTimerClock{FPS_MS}, mInstructionClock{1000.0 / INSTRUCTIONS_PER_SECOND};
 };
