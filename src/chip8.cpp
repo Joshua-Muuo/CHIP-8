@@ -1,6 +1,5 @@
 #include "chip8.hpp"
 #include <algorithm>
-#include <chrono>
 #include <fstream>
 #include <print>
 #include <filesystem>
@@ -124,8 +123,8 @@ void CHIP8::execute()
        KK       {static_cast<u8>(mCurrentOpCode      & 0xFF)};
 
     u8 firstNibble  {static_cast<u8>(firstByte >> 4)},
-       Vx           {static_cast<u8>(firstByte & 0xF)},
-       Vy           {static_cast<u8>(KK >> 4)},
+       x            {static_cast<u8>(firstByte & 0xF)},
+       y            {static_cast<u8>(KK >> 4)},
        fourthNibble {static_cast<u8>(KK & 0xF)};
    
     // nnn represents the second, third, and fourth (last three) nibbles in the op code 
@@ -138,7 +137,7 @@ void CHIP8::execute()
     // if (count > 5)
     //     std::exit(0);
 	
-	u8& regX{mRegisters[Vx]}, &regY{mRegisters[Vy]};
+	u8& Vx{mRegisters[x]}, &Vy{mRegisters[y]};
     switch (firstNibble)
     {
         case 0:
@@ -173,8 +172,7 @@ void CHIP8::execute()
         case 3:
         {
             // 3xkk skips the next instruction if Vx = kk
-
-            if (mRegisters[Vx] == KK)
+            if (mRegisters[x] == KK)
                 mPC += 2;
 
             break;
@@ -183,7 +181,7 @@ void CHIP8::execute()
         case 4:
         {
             // 4xkk skips the next instruction if Vx != kk
-            if (mRegisters[Vx] != KK)
+            if (mRegisters[x] != KK)
                 mPC += 2;
             
             break;
@@ -191,10 +189,10 @@ void CHIP8::execute()
 
         case 5:
         {
-            // 5xy0 skips the next insturction if Vx == Vy
+            // 5xy0 skips the next instruction if Vx == Vy
 
 			if (fourthNibble != 0) break;
-            if (mRegisters[Vx] == mRegisters[Vy])
+            if (mRegisters[x] == mRegisters[y])
                 mPC += 2;
 
             break;
@@ -203,15 +201,15 @@ void CHIP8::execute()
         case 6:
         {
             // 6xkk loads kk into Vx (Vx = kk)
-            mRegisters[Vx] = KK;
+            Vx = KK;
             break;
         }
 
         case 7:
         {
             // 7xKK adds byte KK into register Vx
-            mRegisters[Vx] += KK;
-            std::println("added {} to register {}", KK, Vx);
+            Vx += KK;
+            std::println("added {} to register {}", KK, x);
             break;
         }
 
@@ -220,50 +218,81 @@ void CHIP8::execute()
 			switch (fourthNibble)
 			{
 				case 0:
-					// LD Vx, Vy
-					regX = regY;
+					// 8xy0 loads Vy into Vx
+					Vx = Vy;
 					break;
 				case 1:
-					regX = regX & regY;
+					// 8xy1 loads the bitwise AND of Vx and Vy into Vx
+					Vx = Vx & Vy;
 					break;
 				case 2:
-					regX = regX | regY;
+					// 8xy2 loads the bitwise OR of Vx and Vy into Vx
+					Vx = Vx | Vy;
 					break;
 				case 3:
-					regX = regX ^ regY;
+					// 8xy3 loads the bitwise XOR of Vx and Vy into Vx
+					Vx = Vx ^ Vy;
 					break;
 				case 4:
 				{
-					u16 sum = (u16)regX + regY;
-					if (sum > 255)
-					{
+					// 8xy4 loads the sum of Vx and Vy into Vx
+					// If the sums overflows, VF is set to 1, else 0
+					u16 sum = static_cast<u16>(Vx) + Vy;
+					bool overflow{sum > 255};
+					if (overflow)
 						sum -= 255;
-						getRegister(Registers::VF) = 1;
-					}
 					
-					regX = sum;
+					Vx = sum;
+					getRegister(Registers::VF) = overflow;
 					break;
 				}
 				case 5:
-					getRegister(Registers::VF) = regX < regY;
-					regX -= regY;
+				{
+					// 8xy5 loads the difference of Vx and Vy into Vx
+					// If the result doesn't underflow (Vx > Vy, NOT underflow), then
+					// VF is set to 1, else 0
+					
+					bool underflow{Vx > Vy};
+					Vx -= Vy;
+					getRegister(Registers::VF) = !underflow;
 					break;
+				}
 				case 6:
-					regX = regX >> 1;
+				{
+					// 8xy6 bitwise shifts the value stored in Vx to the right by one
+					// If the least significant bit in Vx was 1, then VF is set to 1, else 0 
+					u8 lsb{static_cast<u8>(Vx & 1)};
+					Vx >>= 1;
+
+					getRegister(Registers::VF) = lsb;
 					break;
+				}
 				case 7:
-					getRegister(Registers::VF) = regY < regX;
-					regX = regY - regX;
+				{
+					// 8xy7 loads the difference of Vy and Vx into Vx
+					// If the result doesn't underflow (Vy > Vx, NOT underflow), then
+					// VF is set to 1, else 0
+					bool underflow{Vy > Vx};
+					Vx = Vy - Vx;
+					getRegister(Registers::VF) = !underflow;
 					break;
+				}
 				case 0xE:
-					regX = regX << 1;
+					// 8xy7 bitwise shifts the value stored in Vx to the left by one
+					// If the most significant bit in Vx was 1, then VF is set to 1, else 0 
+					u8 msb{static_cast<u8>((Vx >> 7) & 1)};
+					Vx <<= 1;
+
+					getRegister(Registers::VF) = msb;
 					break;
 			}
 		}
 
 		case 0x9:
 		{
-			if (regX != regY) mPC += 2;
+			// 9xy0 skips the next instruction if Vx != Vy
+			if (fourthNibble != 0) break;
+			if (Vx != Vy) mPC += 2;
 			break;
 		}
 
@@ -276,13 +305,13 @@ void CHIP8::execute()
 
         case 0xB:
         {
-            // Annn sets the value of the index register to nnn
-            mI = nnn + getRegister(Registers::V0);
+            // Bnnn jumps to instruction nnn + V0
+            mPC = nnn + getRegister(Registers::V0);
             break;
         }
 		case 0xC:
 		{
-			regX = randByte() & KK;
+			Vx = randByte() & KK;
 			break;
 		}
         case 0xD:
@@ -302,8 +331,8 @@ void CHIP8::execute()
             // (65, 33) would be the same as (1, 1).
             // Only the starting position should wrap around however. If a sprite were to go off 
             // of the display, it should be clipped.
-            u16 x{static_cast<u16>(mRegisters[Vx] % COLS)},
-                y{static_cast<u16>(mRegisters[Vy] % ROWS)};
+            u16 x{static_cast<u16>(Vx % COLS)},
+                y{static_cast<u16>(Vy % ROWS)};
 
             // The fourth nibble stores the byte size of the sprite
             u8 nBytes{fourthNibble};
@@ -313,6 +342,7 @@ void CHIP8::execute()
                 if (y + n >= ROWS)
                     break;
 
+				if (mI + n >= mMemory.size()) break;
                 u8 byte{mMemory[mI + n]};
                 for (i32 dx{}; dx < 8; ++dx)
                 {
@@ -321,6 +351,7 @@ void CHIP8::execute()
                         break;
 
                     u32 index{(y + n) * COLS + x + dx};
+					if (index >= mDisplay.size()) break;
                     u8 bit{static_cast<u8>((byte >> (7 - dx)) & 1)};
 
                     if (mDisplay[index] && bit)
@@ -337,13 +368,13 @@ void CHIP8::execute()
 			{
 				case 0x9E:
 				{
-					if (mKeyMap[regX]) 
+					if (mKeyMap[Vx]) 
 						mPC += 2;
 					break;
 				}
 				case 0xA1:
 				{
-					if (!mKeyMap[regX]) 
+					if (!mKeyMap[Vx]) 
 						mPC += 2;
 					break;
 				}
@@ -355,7 +386,7 @@ void CHIP8::execute()
 			switch (KK)
 			{
 				case 0x07:
-					regX = mDelayTimer;
+					Vx = mDelayTimer;
 					break;
 				case 0x0A:
 					mWaitingForKeyPress = true;		
@@ -363,40 +394,40 @@ void CHIP8::execute()
 					break;
 
 				case 0x15:
-					mDelayTimer = regX;
+					mDelayTimer = Vx;
 					break;
 				case 0x18:
-					mSoundTimer = regX;
+					mSoundTimer = Vx;
 					break;
 
 				case 0x1E:
-					mI += regX;
+					mI += Vx;
 					break;
 				case 0x29:
-					mI = regX * 5 + FONT_LOCATION;
+					mI = Vx * 5 + FONT_LOCATION;
 					break;
 
 				case 0x33:
-					mMemory[mI] = regX / 100;
-					mMemory[mI + 1] = (regX / 10) % 10;
-					mMemory[mI + 2] = regX % 10;
+					mMemory[mI] = Vx / 100;
+					mMemory[mI + 1] = (Vx / 10) % 10;
+					mMemory[mI + 2] = Vx % 10;
 					break;
 				case 0x55:
-					for (u32 i{}; i < Vx; ++i)
+					for (u32 i{}; i <= x; ++i)
 					{
 						mMemory[mI + i] = mRegisters[i];
 					}
 
-					mI = mI + Vx + 1;
+					mI +=  x + 1;
 					break;
 
 				case 0x65:
-					for (u32 i{}; i < Vx; ++i)
+					for (u32 i{}; i <= x; ++i)
 					{
 						mRegisters[i] = mMemory[mI + i];
 					}
 
-					mI = mI + Vx + 1;
+					mI += x + 1;
 					break;
 			}
 		}
@@ -407,30 +438,17 @@ void CHIP8::execute()
 
 void CHIP8::run()
 { 
-	namespace chrono = std::chrono;
-	mThisCall = chrono::system_clock::now();
-	auto ms{chrono::duration_cast<chrono::milliseconds>(mThisCall - mLastCall)};
-
-
-	if (mWaitingForKeyPress) return;
-	mDeltaTime += ms.count();
-	if (mDeltaTime >= FPS_MS)
+	if (mInstructionClock.tick() && !mWaitingForKeyPress)
 	{
-		mDeltaTime = 0.0f;
+		fetch(); 
+		execute(); 
+	}
 
-		for (u32 _{}; _ < INSTRUCTIONS_PER_CALL; ++_)
-		{
-			fetch(); 
-			execute(); 
-
-			if (mWaitingForKeyPress) return;
-		}
-
+	if (mTimerClock.tick())
+	{
 		if (mDelayTimer > 0) --mDelayTimer;
 		if (mSoundTimer > 0) --mSoundTimer;
 	}
-
-	mLastCall = mThisCall;
 }
 
 u8& CHIP8::getRegister(const Registers& reg)

@@ -2,11 +2,10 @@
 #include <array>
 #include "types.hpp"
 #include <string>
-#include <chrono>
+#include "clock.hpp"
 
 #define KB 1024
 
-using timepoint = std::chrono::time_point<std::chrono::system_clock>;
 class CHIP8
 {
 public:
@@ -23,7 +22,7 @@ private:
     static constexpr bool BLACK{0}, WHITE{1};
     static constexpr u32 FONT_LOCATION{0x050};
     static constexpr u32 PC_INITIAL{0x200};
-    static constexpr u32 INSTRUCTIONS_PER_CALL{10};
+    static constexpr u32 INSTRUCTIONS_PER_SECOND{600};
 	static constexpr f32 FPS_MS{1000.0f / 60};
 
 	enum class Registers
@@ -50,6 +49,5 @@ private:
 
 	u8 mKeyPressed;
 	bool mWaitingForKeyPress{false};
-	f32 mDeltaTime{};
-	timepoint mLastCall, mThisCall;
+	Clock mTimerClock{1000 / 60}, mInstructionClock{1000 / INSTRUCTIONS_PER_SECOND};
 };
