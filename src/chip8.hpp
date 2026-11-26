@@ -16,7 +16,7 @@ public:
     void loadROM(const std::string& romFile);
 	
     const std::array<bool, ROWS * COLS>& getDisplay();
-    std::array<bool, 16>& getKeyMap();
+	void setKey(u8 keyValue, bool on = true);
 
     void run();
 private:
@@ -48,6 +48,8 @@ private:
     u8 mSP{};
     u16 mCurrentOpCode{};
 
+	u8 mKeyPressed;
+	bool mWaitingForKeyPress{false};
 	f32 mDeltaTime{};
 	timepoint mLastCall, mThisCall;
 };

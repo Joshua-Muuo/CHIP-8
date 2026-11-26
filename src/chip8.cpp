@@ -20,7 +20,7 @@ namespace
 CHIP8::CHIP8()
 {
     initRAM();
-    loadROM("roms/ibm-logo.ch8");
+    loadROM("roms/snake.ch8");
 }
 
 void CHIP8::initRAM()
@@ -28,6 +28,7 @@ void CHIP8::initRAM()
     mPC = PC_INITIAL;
     std::array<u8, 5 * 16> font{
     // font from  https://tobiasvl.github.io/blog/write-a-chip-8-emulator/
+	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
     0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
@@ -57,7 +58,7 @@ void CHIP8::loadROM(const std::string& romFile)
         return;
     }
 
-    const u32 INSTRUCTIONS_SIZE{mMemory.size() - PC_INITIAL};
+    const usize INSTRUCTIONS_SIZE{mMemory.size() - PC_INITIAL};
 
     std::error_code ec;
     usize romFileSize{std::filesystem::file_size(romPath, ec)};
@@ -92,10 +93,21 @@ const std::array<bool, CHIP8::ROWS * CHIP8::COLS>& CHIP8::getDisplay()
     return mDisplay;
 }
 
-std::array<bool, 16>& CHIP8::getKeyMap()
+
+void CHIP8::setKey(u8 keyValue, bool on)
 {
-	return mKeyMap;
+	if (keyValue > 0xF) return;
+	mKeyMap[keyValue] = on;
+
+	if (on && mWaitingForKeyPress)
+	{
+		mWaitingForKeyPress = false;
+		mKeyPressed = keyValue;
+		std::println("done waiting");
+	}
+
 }
+
 
 void CHIP8::fetch()
 {
@@ -321,6 +333,21 @@ void CHIP8::execute()
 
 		case 0xE:
 		{
+			switch (KK)
+			{
+				case 0x9E:
+				{
+					if (mKeyMap[regX]) 
+						mPC += 2;
+					break;
+				}
+				case 0xA1:
+				{
+					if (!mKeyMap[regX]) 
+						mPC += 2;
+					break;
+				}
+			}
 		}
 
 		case 0xF:
@@ -331,7 +358,8 @@ void CHIP8::execute()
 					regX = mDelayTimer;
 					break;
 				case 0x0A:
-					// wait
+					mWaitingForKeyPress = true;		
+					mPC -= 2;
 					break;
 
 				case 0x15:
@@ -347,6 +375,29 @@ void CHIP8::execute()
 				case 0x29:
 					mI = regX * 5 + FONT_LOCATION;
 					break;
+
+				case 0x33:
+					mMemory[mI] = regX / 100;
+					mMemory[mI + 1] = (regX / 10) % 10;
+					mMemory[mI + 2] = regX % 10;
+					break;
+				case 0x55:
+					for (u32 i{}; i < Vx; ++i)
+					{
+						mMemory[mI + i] = mRegisters[i];
+					}
+
+					mI = mI + Vx + 1;
+					break;
+
+				case 0x65:
+					for (u32 i{}; i < Vx; ++i)
+					{
+						mRegisters[i] = mMemory[mI + i];
+					}
+
+					mI = mI + Vx + 1;
+					break;
 			}
 		}
     }
@@ -361,6 +412,7 @@ void CHIP8::run()
 	auto ms{chrono::duration_cast<chrono::milliseconds>(mThisCall - mLastCall)};
 
 
+	if (mWaitingForKeyPress) return;
 	mDeltaTime += ms.count();
 	if (mDeltaTime >= FPS_MS)
 	{
@@ -370,6 +422,8 @@ void CHIP8::run()
 		{
 			fetch(); 
 			execute(); 
+
+			if (mWaitingForKeyPress) return;
 		}
 
 		if (mDelayTimer > 0) --mDelayTimer;
