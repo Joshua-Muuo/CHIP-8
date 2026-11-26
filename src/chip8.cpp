@@ -311,6 +311,8 @@ void CHIP8::execute()
         }
 		case 0xC:
 		{
+            // Cxkk performs a bitwise AND of a random byte and KK, then
+			// store the result in Vx
 			Vx = randByte() & KK;
 			break;
 		}
@@ -368,12 +370,17 @@ void CHIP8::execute()
 			{
 				case 0x9E:
 				{
+					// Ex9E skips next instruction if the key with the value
+					// of Vx is currently pressed
 					if (mKeyMap[Vx]) 
 						mPC += 2;
+
 					break;
 				}
 				case 0xA1:
 				{
+					// ExA1 skips next instruction if the key with the value
+					// of Vx isn't currently pressed
 					if (!mKeyMap[Vx]) 
 						mPC += 2;
 					break;
@@ -386,33 +393,47 @@ void CHIP8::execute()
 			switch (KK)
 			{
 				case 0x07:
+					// Fx0A stores the value of the delay timer in Vx
 					Vx = mDelayTimer;
 					break;
 				case 0x0A:
+					// Fx0A stops execution until a key is pressed, then stores
+					// the value of that key in Vx
 					mWaitingForKeyPress = true;		
 					mPC -= 2;
 					break;
-
 				case 0x15:
+					// Fx15 sets the delay timer to Vx
 					mDelayTimer = Vx;
 					break;
 				case 0x18:
+					// Fx18 sets the sound timer to Vx
 					mSoundTimer = Vx;
 					break;
-
 				case 0x1E:
+					// Fx1E increments the index register by Vx
 					mI += Vx;
 					break;
 				case 0x29:
+					// Fx29 points the index register to the location of 
+					// digit Vx
 					mI = Vx * 5 + FONT_LOCATION;
 					break;
 
 				case 0x33:
+					// Fx33 stores the value of BCD (binary coded decimal)
+					// representation of Vx in memory addresses 
+					// I, I + 1, I + 2
+					// The hundreds digit is stored at I,
+					// the tens digit at I + 1, and the ones digit 
+					// at I + 2
 					mMemory[mI] = Vx / 100;
 					mMemory[mI + 1] = (Vx / 10) % 10;
 					mMemory[mI + 2] = Vx % 10;
 					break;
 				case 0x55:
+					// Fx55 stores registers V0 through Vx in memory,
+					// starting at address I
 					for (u32 i{}; i <= x; ++i)
 					{
 						mMemory[mI + i] = mRegisters[i];
@@ -420,8 +441,10 @@ void CHIP8::execute()
 
 					mI +=  x + 1;
 					break;
-
-				case 0x65:
+				case 0x65:  
+					// Fx65 stores addresses in memory into 
+					// registers V0 through Vx, starting at 
+					// address I
 					for (u32 i{}; i <= x; ++i)
 					{
 						mRegisters[i] = mMemory[mI + i];
