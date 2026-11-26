@@ -1,13 +1,14 @@
 #pragma once
 #include <chrono>
+#include <format>
 #include "types.hpp"
 
 using timepoint = std::chrono::time_point<std::chrono::steady_clock>;
 class Clock
 {
 	public:
-		Clock(u64 timerValue):
-		mTimer{std::chrono::milliseconds(timerValue)}
+		Clock(f64 timerValue):
+		mTimer{timerValue}
 		{};
 
 		[[nodiscard]] bool tick() 
@@ -29,5 +30,5 @@ class Clock
 		
 	private:
 		timepoint mLast, mNow;
-		std::chrono::milliseconds mDeltaTime, mTimer;
+		std::chrono::duration<f64, std::milli> mDeltaTime, mTimer;
 };
