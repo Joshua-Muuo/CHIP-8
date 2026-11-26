@@ -36,9 +36,8 @@ void Window::pollEvents()
             mWindow.close();
     }
 
-	auto& chip8KeyMap{mCHIP8.getKeyMap()};
 	for (const auto& [key, keyValue] : mKeyMap)
-		chip8KeyMap[keyValue] = sf::Keyboard::isKeyPressed(key);
+		mCHIP8.setKey(keyValue, sf::Keyboard::isKeyPressed(key));
 	
     
 }
