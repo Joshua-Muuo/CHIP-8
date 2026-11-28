@@ -15,14 +15,15 @@ public:
     void loadROM(const std::string& romFile);
 	
     const std::array<bool, ROWS * COLS>& getDisplay();
-	void setKey(u8 keyValue, bool on = true);
+	void setKey(u8 keyValue, bool pressed = true);
 
     void run();
 private:
     static constexpr bool BLACK{0}, WHITE{1};
     static constexpr u32 FONT_LOCATION{0x050};
     static constexpr u32 PC_INITIAL{0x200};
-    static constexpr u32 INSTRUCTIONS_PER_SECOND{100000000};
+    static constexpr u32 INSTRUCTIONS_PER_SECOND{500};
+    static constexpr u32 NUM_OF_KEYS{16};
 	static constexpr f32 FPS_MS{1000.0f / 60};
 
 	enum class Registers
