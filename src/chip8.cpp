@@ -19,7 +19,7 @@ namespace
 CHIP8::CHIP8()
 {
     initRAM();
-    loadROM("roms/snake.ch8");
+    loadROM("roms/tetris.ch8");
 }
 
 void CHIP8::initRAM()
@@ -95,7 +95,7 @@ const std::array<bool, CHIP8::ROWS * CHIP8::COLS>& CHIP8::getDisplay()
 
 void CHIP8::setKey(u8 keyValue, bool on)
 {
-	if (keyValue > 0xF) return;
+	if (keyValue > NUM_OF_KEYS) return;
 	if (!mKeyMap[keyValue] && on)
 	{
 		mKeyJustPressed = true;
@@ -142,14 +142,23 @@ void CHIP8::execute()
         case 0:
         {
             // instruction 0nnn will not be implemented
-
-            if (KK == 0xE0)
-                mDisplay.fill(BLACK);
-			if (KK == 0xEE)
+			switch (KK)
 			{
-				mPC = mStack[mSP - 1];
-				--mSP;
+				case 0xE0:
+				{
+					// 00E0 clears the screen
+					mDisplay.fill(BLACK);
+					break;
+				}
+				case 0xEE:
+				{
+					// 00EE returns from a subroutine 
+					if (mSP == 0) break;
+					mPC = mStack[--mSP];
+					break;
+				}
 			}
+
             break;
         }
 
@@ -163,6 +172,8 @@ void CHIP8::execute()
         case 2:
         {
             // 2nnn calls the subroutine at nnn
+			if (mSP >= mStack.size()) break;
+
             mStack[mSP++] = mPC;
             mPC = nnn;
             break;
@@ -236,10 +247,10 @@ void CHIP8::execute()
 				{
 					// 8xy4 loads the sum of Vx and Vy into Vx
 					// If the sums overflows, VF is set to 1, else 0
-					u16 sum = static_cast<u16>(Vx) + Vy;
-					bool overflow{sum > 255};
+					u16 sum{static_cast<u16>(Vx + Vy)};
+					bool overflow{sum > 0xFF};
 					if (overflow)
-						sum -= 255;
+						sum &= 0xFF;
 					
 					Vx = sum;
 					getRegister(Registers::VF) = overflow;
@@ -248,12 +259,12 @@ void CHIP8::execute()
 				case 5:
 				{
 					// 8xy5 loads the difference of Vx and Vy into Vx
-					// If the result doesn't underflow (Vx > Vy, NOT underflow), then
+					// If the result doesn't underflow (Vx >= Vy, NOT underflow), then
 					// VF is set to 1, else 0
 					
-					bool underflow{Vx > Vy};
+					bool noUnderflow{Vx >= Vy};
 					Vx -= Vy;
-					getRegister(Registers::VF) = !underflow;
+					getRegister(Registers::VF) = noUnderflow;
 					break;
 				}
 				case 6:
@@ -269,11 +280,11 @@ void CHIP8::execute()
 				case 7:
 				{
 					// 8xy7 loads the difference of Vy and Vx into Vx
-					// If the result doesn't underflow (Vy > Vx, NOT underflow), then
+					// If the result doesn't underflow (Vy >= Vx, NOT underflow), then
 					// VF is set to 1, else 0
-					bool underflow{Vy > Vx};
+					bool noUnderflow{Vy >= Vx};
 					Vx = Vy - Vx;
-					getRegister(Registers::VF) = !underflow;
+					getRegister(Registers::VF) = noUnderflow;
 					break;
 				}
 				case 0xE:
@@ -285,9 +296,10 @@ void CHIP8::execute()
 					getRegister(Registers::VF) = msb;
 					break;
 			}
+			break;
 		}
 
-		case 0x9:
+		case 9:
 		{
 			// 9xy0 skips the next instruction if Vx != Vy
 			if (fourthNibble != 0) break;
@@ -365,6 +377,7 @@ void CHIP8::execute()
 
 		case 0xE:
 		{
+			if (Vx >= NUM_OF_KEYS) break;
 			switch (KK)
 			{
 				case 0x9E:
@@ -385,6 +398,8 @@ void CHIP8::execute()
 					break;
 				}
 			}
+
+			break;
 		}
 
 		case 0xF:
@@ -402,6 +417,7 @@ void CHIP8::execute()
 					{
 						Vx = mKeyPressed;
 						mWaitingForKeyPress = false;
+						mKeyJustPressed = false;
 						// std::println("stored key pressed into Vx");
 					}
 					else
@@ -469,18 +485,23 @@ void CHIP8::execute()
 
 void CHIP8::run()
 { 
-	if (mInstructionClock.tick() && (!mWaitingForKeyPress || mKeyJustPressed))
+	i32 ticks;
+	if ((ticks = mInstructionClock.tick()) && (!mWaitingForKeyPress || mKeyJustPressed))
 	{
-		fetch(); 
-		execute(); 
-
-		mKeyJustPressed = false;
+		for (i32 _; _ < ticks; ++_)
+		{
+			fetch(); 
+			execute(); 
+		}
 	}
 
-	if (mTimerClock.tick())
+	if ((ticks = mTimerClock.tick()))
 	{
-		if (mDelayTimer > 0) --mDelayTimer;
-		if (mSoundTimer > 0) --mSoundTimer;
+		for (i32 _; _ < ticks; ++_)
+		{
+			if (mDelayTimer > 0) --mDelayTimer;
+			if (mSoundTimer > 0) --mSoundTimer;
+		}
 	}
 }
 
