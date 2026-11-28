@@ -3,32 +3,39 @@
 #include <format>
 #include "types.hpp"
 
-using timepoint = std::chrono::time_point<std::chrono::steady_clock>;
 class Clock
 {
+	using ClockType = std::chrono::steady_clock;
+	using milliseconds = std::chrono::duration<f64, std::milli>;
 	public:
-		Clock(f64 timerValue):
-		mTimer{timerValue}
+		Clock(f64 timePerTick):
+		mLast{ClockType::now()},
+		mDeltaTime{0.0},
+		mTimePerTick{timePerTick}
 		{};
 
-		[[nodiscard]] bool tick() 
+		[[nodiscard]] i32 tick() 
 		{ 
 			namespace chr = std::chrono;
 			using namespace std::chrono_literals;
-			mNow = chr::steady_clock::now();
-
-			auto elapsedTime{chr::duration_cast<chr::milliseconds>(mNow - mLast)};
+			const auto now{chr::steady_clock::now()};
+			const auto elapsedTime{chr::duration_cast<milliseconds>(now - mLast)};
 			mDeltaTime += elapsedTime;
 			
-			bool timerDone{mDeltaTime >= mTimer};
+			bool timerDone{mDeltaTime >= mTimePerTick};
+			i32 ticks{};
 			if (timerDone)
-				mDeltaTime = 0ms;
+			{
+				ticks = mDeltaTime / mTimePerTick;
+				mDeltaTime -= ticks * mTimePerTick;
+			}
 
-			return timerDone;
+			mLast = now;
+			return ticks;
 		}
 
 		
 	private:
-		timepoint mLast, mNow;
-		std::chrono::duration<f64, std::milli> mDeltaTime, mTimer;
+		ClockType::time_point mLast;
+		milliseconds mDeltaTime, mTimePerTick;
 };
